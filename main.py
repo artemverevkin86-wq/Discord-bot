@@ -16,7 +16,6 @@ ADMINS = [123456789012345678]  # Вставь свой Discord ID сюда!
 conn = sqlite3.connect('economy.db')
 c = conn.cursor()
 
-# Создаём все таблицы
 c.execute('''CREATE TABLE IF NOT EXISTS users (
     user_id TEXT PRIMARY KEY,
     balance INTEGER DEFAULT 0,
@@ -84,12 +83,9 @@ def check_daily(user_id):
         return True, 50, 1
     
     last_daily, streak = result
-    
-    # Если сегодня уже получал
     if last_daily == today:
         return False, 0, streak
     
-    # Проверяем, был ли пропуск
     if last_daily == today - 1:
         streak += 1
     else:
@@ -108,11 +104,11 @@ def check_daily(user_id):
 async def on_ready():
     print(f'✅ Бот {bot.user} запущен!')
     await bot.tree.sync()
+    print("✅ Слеш-команды синхронизированы!")
     await bot.change_presence(activity=discord.Game(name="/помощь"))
 
 # ========== СЛЕШ-КОМАНДЫ ==========
 
-# ---- ПОМОЩЬ ----
 @bot.tree.command(name="помощь", description="Показать список всех команд")
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(title="🤖 ПОМОЩЬ ПО КОМАНДАМ", color=0xff5555)
@@ -125,7 +121,6 @@ async def help_command(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ---- БАЛАНС ----
 @bot.tree.command(name="баланс", description="Показать свой баланс или баланс другого игрока")
 async def balance(interaction: discord.Interaction, пользователь: discord.User = None):
     target = пользователь or interaction.user
@@ -136,7 +131,6 @@ async def balance(interaction: discord.Interaction, пользователь: di
     embed.add_field(name="Баланс", value=f"**{balance_amount}** Belfast_coin", inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ---- ЕЖЕДНЕВНЫЙ БОНУС ----
 @bot.tree.command(name="ежедневный", description="Получить ежедневный бонус (серия увеличивает награду)")
 async def daily(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
@@ -154,7 +148,6 @@ async def daily(interaction: discord.Interaction):
     embed.add_field(name="Серия", value=f"{streak} дней", inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ---- ПЕРЕДАТЬ ----
 @bot.tree.command(name="передать", description="Передать монеты другому игроку")
 async def transfer(interaction: discord.Interaction, пользователь: discord.User, сумма: int):
     if сумма <= 0:
@@ -182,7 +175,6 @@ async def transfer(interaction: discord.Interaction, пользователь: d
     embed.add_field(name="Сумма", value=f"{сумма} Belfast_coin", inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ---- ТОП ----
 @bot.tree.command(name="топ", description="Топ 10 игроков по балансу")
 async def leaderboard(interaction: discord.Interaction):
     c.execute('SELECT user_id, balance FROM users ORDER BY balance DESC LIMIT 10')
@@ -203,7 +195,7 @@ async def leaderboard(interaction: discord.Interaction):
         embed.add_field(name=f"{medal} #{i}", value=f"{name} — {balance_amount} монет", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ---- ПАГИНАТОР ДЛЯ МАГАЗИНА ----
+# ---- ПАГИНАТОРЫ ----
 class ShopPaginator(discord.ui.View):
     def __init__(self, items, items_per_page=5):
         super().__init__(timeout=60)
@@ -250,11 +242,9 @@ class ShopPaginator(discord.ui.View):
 async def shop(interaction: discord.Interaction):
     c.execute('SELECT name, description, price FROM shop_items WHERE expires_at > datetime("now") OR duration_hours = 0')
     items = c.fetchall()
-    
     view = ShopPaginator(items)
     await interaction.response.send_message(embed=view.get_embed(), view=view)
 
-# ---- КУПИТЬ ----
 @bot.tree.command(name="купить", description="Купить предмет из магазина")
 async def buy(interaction: discord.Interaction, название: str):
     user_id = str(interaction.user.id)
@@ -273,13 +263,11 @@ async def buy(interaction: discord.Interaction, название: str):
         return
     
     update_balance(user_id, -price)
-    
     embed = discord.Embed(title="✅ ПОКУПКА", color=0x88ff88)
     embed.add_field(name="Предмет", value=название, inline=True)
     embed.add_field(name="Цена", value=f"{price} Belfast_coin", inline=True)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ---- КЕЙС ----
 @bot.tree.command(name="кейс", description="Открыть кейс за 50 монет (рандомный выигрыш)")
 async def case(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
@@ -306,7 +294,6 @@ async def case(interaction: discord.Interaction):
     embed.add_field(name="Выпало", value=f"{prize_name} — **{prize_amount}** монет!", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ---- ПАГИНАТОР ДЛЯ ДОСТИЖЕНИЙ ----
 class AchievementsPaginator(discord.ui.View):
     def __init__(self, achievements, user_id, items_per_page=4):
         super().__init__(timeout=60)
@@ -365,11 +352,9 @@ class AchievementsPaginator(discord.ui.View):
 async def list_achievements(interaction: discord.Interaction):
     c.execute('SELECT ach_id, name, description, reward FROM achievements')
     all_ach = c.fetchall()
-    
     view = AchievementsPaginator(all_ach, str(interaction.user.id))
     await interaction.response.send_message(embed=view.get_embed(), view=view)
 
-# ---- ИНФО О ДОСТИЖЕНИИ ----
 @bot.tree.command(name="достижение", description="Показать подробную информацию о достижении")
 async def achievement_info(interaction: discord.Interaction, название: str):
     c.execute('SELECT name, description, reward FROM achievements WHERE name LIKE ?', (f'%{название}%',))
