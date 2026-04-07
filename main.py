@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import os
 
-TOKEN = os.environ[e737a3a642cb30549407820ad2b731025d46220dd7322d952283fca7b49b307e]
+TOKEN = os.environ['TOKEN']   # Токен берётся из Railway, НЕ ИЗ КОДА
 
 bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
@@ -14,4 +14,4 @@ async def on_ready():
 async def привет(ctx):
     await ctx.send(f'Привет, {ctx.author.mention}!')
 
-bot.run(e737a3a642cb30549407820ad2b731025d46220dd7322d952283fca7b49b307e)
+bot.run(TOKEN)
