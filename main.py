@@ -10,7 +10,7 @@ import os
 TOKEN = os.environ['TOKEN']
 
 # ID администраторов (замени на свои Discord ID)
-ADMINS = [123456789012345678]  # Вставь свой Discord ID сюда!
+ADMINS = [1482416918957785290]  # Вставь свой Discord ID сюда!
 
 # ========== ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ==========
 conn = sqlite3.connect('economy.db')
