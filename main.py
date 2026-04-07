@@ -81,7 +81,7 @@ async def on_ready():
     print(f'✅ Бот {bot.user} запущен!')
     await bot.change_presence(activity=discord.Game(name="!помощь | Belfast Shop"))
 
-@bot.command(name='помощь', aliases=['help', 'commands'])
+@bot.command(name='помощь', aliases=['commands'])
 async def help_command(ctx):
     embed = discord.Embed(title="🤖 ПОМОЩЬ", description="Список команд", color=0xff5555)
     embed.add_field(name="💰 ЭКОНОМИКА", value="`!баланс` `!ежедневный` `!передать` `!топ`", inline=False)
