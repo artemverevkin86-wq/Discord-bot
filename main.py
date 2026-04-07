@@ -9,9 +9,6 @@ import os
 # ========== НАСТРОЙКИ ==========
 TOKEN = os.environ['TOKEN']
 
-# ID администраторов (замени на свои Discord ID)
-ADMINS = [1482416918957785290]  # Вставь свой Discord ID сюда!
-
 # ========== ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ==========
 conn = sqlite3.connect('economy.db')
 c = conn.cursor()
@@ -99,6 +96,9 @@ def check_daily(user_id):
     conn.commit()
     return True, reward, streak
 
+def is_admin(interaction: discord.Interaction):
+    return interaction.user.guild_permissions.administrator
+
 # ========== СОБЫТИЯ ==========
 @bot.event
 async def on_ready():
@@ -107,16 +107,92 @@ async def on_ready():
     print("✅ Слеш-команды синхронизированы!")
     await bot.change_presence(activity=discord.Game(name="/помощь"))
 
+# ========== КНОПКИ ДЛЯ МАГАЗИНА ==========
+class ShopButton(discord.ui.Button):
+    def __init__(self, item_name, price, label):
+        super().__init__(label=label, style=discord.ButtonStyle.success, custom_id=f"buy_{item_name}")
+        self.item_name = item_name
+        self.price = price
+    
+    async def callback(self, interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        balance = get_balance(user_id)
+        
+        if balance < self.price:
+            await interaction.response.send_message(f"❌ Не хватает! Нужно {self.price}, у вас {balance}", ephemeral=True)
+            return
+        
+        update_balance(user_id, -self.price)
+        embed = discord.Embed(title="✅ ПОКУПКА", color=0x88ff88)
+        embed.add_field(name="Предмет", value=self.item_name, inline=True)
+        embed.add_field(name="Цена", value=f"{self.price} Belfast_coin", inline=True)
+        await interaction.response.send_message(embed=embed, ephemeral=False)
+
+class ShopView(discord.ui.View):
+    def __init__(self, items, items_per_page=5):
+        super().__init__(timeout=60)
+        self.items = items
+        self.items_per_page = items_per_page
+        self.current_page = 0
+        self.total_pages = (len(items) + items_per_page - 1) // items_per_page if items else 1
+        self.update_buttons()
+    
+    def update_buttons(self):
+        self.clear_items()
+        
+        # Кнопки навигации
+        if self.current_page > 0:
+            self.add_item(discord.ui.Button(label="◀ Назад", style=discord.ButtonStyle.secondary, custom_id="prev_page"))
+        if self.current_page < self.total_pages - 1:
+            self.add_item(discord.ui.Button(label="Вперед ▶", style=discord.ButtonStyle.secondary, custom_id="next_page"))
+        
+        # Кнопки покупки для предметов на текущей странице
+        start = self.current_page * self.items_per_page
+        end = start + self.items_per_page
+        for item in self.items[start:end]:
+            self.add_item(ShopButton(item[0], item[2], f"🛒 {item[0]} - {item[2]}💰"))
+    
+    async def interaction_check(self, interaction: discord.Interaction):
+        if interaction.data["custom_id"] == "prev_page":
+            self.current_page -= 1
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.get_embed(), view=self)
+        elif interaction.data["custom_id"] == "next_page":
+            self.current_page += 1
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.get_embed(), view=self)
+        else:
+            return True
+        return False
+    
+    def get_embed(self):
+        if not self.items:
+            embed = discord.Embed(title="🏪 МАГАЗИН", color=0xff5555)
+            embed.description = "Магазин пуст!"
+            return embed
+        
+        start = self.current_page * self.items_per_page
+        end = start + self.items_per_page
+        page_items = self.items[start:end]
+        
+        embed = discord.Embed(title="🏪 МАГАЗИН", color=0xff5555)
+        embed.set_footer(text=f"Страница {self.current_page + 1} из {self.total_pages}")
+        
+        for item in page_items:
+            embed.add_field(name=f"**{item[0]}**", value=f"📝 {item[1]}\n💰 {item[2]} монет", inline=False)
+        
+        return embed
+
 # ========== СЛЕШ-КОМАНДЫ ==========
 
 @bot.tree.command(name="помощь", description="Показать список всех команд")
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(title="🤖 ПОМОЩЬ ПО КОМАНДАМ", color=0xff5555)
     embed.add_field(name="💰 ЭКОНОМИКА", value="`/баланс` `/ежедневный` `/передать` `/топ`", inline=False)
-    embed.add_field(name="🏪 МАГАЗИН", value="`/магазин` `/купить` `/кейс`", inline=False)
+    embed.add_field(name="🏪 МАГАЗИН", value="`/магазин` `/кейс`", inline=False)
     embed.add_field(name="🏆 ДОСТИЖЕНИЯ", value="`/достижения` `/достижение`", inline=False)
     
-    if interaction.user.id in ADMINS:
+    if is_admin(interaction):
         embed.add_field(name="🛠️ АДМИН", value="`/add_achievement` `/add_balance` `/remove_balance` `/add_item` `/remove_item`", inline=False)
     
     await interaction.response.send_message(embed=embed, ephemeral=False)
@@ -195,78 +271,13 @@ async def leaderboard(interaction: discord.Interaction):
         embed.add_field(name=f"{medal} #{i}", value=f"{name} — {balance_amount} монет", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ---- ПАГИНАТОРЫ ----
-class ShopPaginator(discord.ui.View):
-    def __init__(self, items, items_per_page=5):
-        super().__init__(timeout=60)
-        self.items = items
-        self.items_per_page = items_per_page
-        self.current_page = 0
-        self.total_pages = (len(items) + items_per_page - 1) // items_per_page if items else 1
-    
-    def get_embed(self):
-        if not self.items:
-            embed = discord.Embed(title="🏪 МАГАЗИН", color=0xff5555)
-            embed.description = "Магазин пуст!"
-            return embed
-        
-        start = self.current_page * self.items_per_page
-        end = start + self.items_per_page
-        page_items = self.items[start:end]
-        
-        embed = discord.Embed(title="🏪 МАГАЗИН", color=0xff5555)
-        embed.set_footer(text=f"Страница {self.current_page + 1} из {self.total_pages}")
-        
-        for item in page_items:
-            embed.add_field(name=f"**{item[0]}**", value=f"📝 {item[1]}\n💰 {item[2]} монет", inline=False)
-        
-        return embed
-    
-    @discord.ui.button(label="◀ Назад", style=discord.ButtonStyle.secondary)
-    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.current_page > 0:
-            self.current_page -= 1
-            await interaction.response.edit_message(embed=self.get_embed(), view=self)
-        else:
-            await interaction.response.defer()
-    
-    @discord.ui.button(label="Вперед ▶", style=discord.ButtonStyle.secondary)
-    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.current_page < self.total_pages - 1:
-            self.current_page += 1
-            await interaction.response.edit_message(embed=self.get_embed(), view=self)
-        else:
-            await interaction.response.defer()
-
 @bot.tree.command(name="магазин", description="Показать все предметы в магазине")
 async def shop(interaction: discord.Interaction):
     c.execute('SELECT name, description, price FROM shop_items WHERE expires_at > datetime("now") OR duration_hours = 0')
     items = c.fetchall()
-    view = ShopPaginator(items)
+    
+    view = ShopView(items)
     await interaction.response.send_message(embed=view.get_embed(), view=view)
-
-@bot.tree.command(name="купить", description="Купить предмет из магазина")
-async def buy(interaction: discord.Interaction, название: str):
-    user_id = str(interaction.user.id)
-    c.execute('SELECT price FROM shop_items WHERE name = ? AND (expires_at > datetime("now") OR duration_hours = 0)', (название,))
-    item = c.fetchone()
-    
-    if not item:
-        await interaction.response.send_message(f"❌ Предмет `{название}` не найден в магазине!", ephemeral=True)
-        return
-    
-    price = item[0]
-    balance_amount = get_balance(user_id)
-    
-    if balance_amount < price:
-        await interaction.response.send_message(f"❌ Не хватает! Нужно {price}, у вас {balance_amount}", ephemeral=True)
-        return
-    
-    update_balance(user_id, -price)
-    embed = discord.Embed(title="✅ ПОКУПКА", color=0x88ff88)
-    embed.add_field(name="Предмет", value=название, inline=True)
-    embed.add_field(name="Цена", value=f"{price} Belfast_coin", inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
 
 @bot.tree.command(name="кейс", description="Открыть кейс за 50 монет (рандомный выигрыш)")
 async def case(interaction: discord.Interaction):
@@ -294,6 +305,7 @@ async def case(interaction: discord.Interaction):
     embed.add_field(name="Выпало", value=f"{prize_name} — **{prize_amount}** монет!", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
+# ========== ДОСТИЖЕНИЯ С ПАГИНАЦИЕЙ ==========
 class AchievementsPaginator(discord.ui.View):
     def __init__(self, achievements, user_id, items_per_page=4):
         super().__init__(timeout=60)
@@ -303,6 +315,7 @@ class AchievementsPaginator(discord.ui.View):
         self.current_page = 0
         self.total_pages = (len(achievements) + items_per_page - 1) // items_per_page if achievements else 1
         self._earned = None
+        self.update_buttons()
     
     @property
     def earned(self):
@@ -310,6 +323,13 @@ class AchievementsPaginator(discord.ui.View):
             c.execute('SELECT ach_id FROM user_achievements WHERE user_id = ?', (self.user_id,))
             self._earned = {row[0] for row in c.fetchall()}
         return self._earned
+    
+    def update_buttons(self):
+        self.clear_items()
+        if self.current_page > 0:
+            self.add_item(discord.ui.Button(label="◀ Назад", style=discord.ButtonStyle.secondary, custom_id="prev_page"))
+        if self.current_page < self.total_pages - 1:
+            self.add_item(discord.ui.Button(label="Вперед ▶", style=discord.ButtonStyle.secondary, custom_id="next_page"))
     
     def get_embed(self):
         if not self.achievements:
@@ -330,28 +350,26 @@ class AchievementsPaginator(discord.ui.View):
         
         return embed
     
-    @discord.ui.button(label="◀ Назад", style=discord.ButtonStyle.secondary)
-    async def prev_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.current_page > 0:
+    async def interaction_check(self, interaction: discord.Interaction):
+        if interaction.data["custom_id"] == "prev_page":
             self.current_page -= 1
+            self.update_buttons()
             self._earned = None
             await interaction.response.edit_message(embed=self.get_embed(), view=self)
-        else:
-            await interaction.response.defer()
-    
-    @discord.ui.button(label="Вперед ▶", style=discord.ButtonStyle.secondary)
-    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.current_page < self.total_pages - 1:
+        elif interaction.data["custom_id"] == "next_page":
             self.current_page += 1
+            self.update_buttons()
             self._earned = None
             await interaction.response.edit_message(embed=self.get_embed(), view=self)
         else:
-            await interaction.response.defer()
+            return True
+        return False
 
 @bot.tree.command(name="достижения", description="Показать все достижения и статус их получения")
 async def list_achievements(interaction: discord.Interaction):
     c.execute('SELECT ach_id, name, description, reward FROM achievements')
     all_ach = c.fetchall()
+    
     view = AchievementsPaginator(all_ach, str(interaction.user.id))
     await interaction.response.send_message(embed=view.get_embed(), view=view)
 
@@ -376,15 +394,14 @@ async def achievement_info(interaction: discord.Interaction, название: s
     embed.add_field(name="Статус", value=status, inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
-# ========== АДМИН-КОМАНДЫ ==========
-def is_admin():
-    async def predicate(interaction: discord.Interaction):
-        return interaction.user.id in ADMINS
-    return app_commands.check(predicate)
+# ========== АДМИН-КОМАНДЫ (проверка через права на сервере) ==========
 
 @bot.tree.command(name="add_achievement", description="[АДМИН] Создать новое достижение")
-@is_admin()
 async def add_achievement(interaction: discord.Interaction, название: str, награда: int, описание: str):
+    if not is_admin(interaction):
+        await interaction.response.send_message("❌ У вас нет прав администратора на этом сервере!", ephemeral=True)
+        return
+    
     try:
         c.execute('INSERT INTO achievements (name, description, reward) VALUES (?, ?, ?)', (название, описание, награда))
         conn.commit()
@@ -397,22 +414,31 @@ async def add_achievement(interaction: discord.Interaction, название: st
         await interaction.response.send_message(f"❌ Достижение **{название}** уже существует!", ephemeral=True)
 
 @bot.tree.command(name="add_balance", description="[АДМИН] Добавить монеты игроку")
-@is_admin()
 async def add_balance(interaction: discord.Interaction, пользователь: discord.User, сумма: int):
+    if not is_admin(interaction):
+        await interaction.response.send_message("❌ У вас нет прав администратора на этом сервере!", ephemeral=True)
+        return
+    
     user_id = str(пользователь.id)
     update_balance(user_id, сумма)
     await interaction.response.send_message(f"✅ {пользователь.mention} добавлено **{сумма}** Belfast_coin!", ephemeral=False)
 
 @bot.tree.command(name="remove_balance", description="[АДМИН] Снять монеты с игрока")
-@is_admin()
 async def remove_balance(interaction: discord.Interaction, пользователь: discord.User, сумма: int):
+    if not is_admin(interaction):
+        await interaction.response.send_message("❌ У вас нет прав администратора на этом сервере!", ephemeral=True)
+        return
+    
     user_id = str(пользователь.id)
     update_balance(user_id, -сумма)
     await interaction.response.send_message(f"✅ У {пользователь.mention} снято **{сумма}** Belfast_coin!", ephemeral=False)
 
 @bot.tree.command(name="add_item", description="[АДМИН] Добавить предмет в магазин")
-@is_admin()
 async def add_item(interaction: discord.Interaction, название: str, цена: int, часы: int = 0, описание: str = "Нет описания"):
+    if not is_admin(interaction):
+        await interaction.response.send_message("❌ У вас нет прав администратора на этом сервере!", ephemeral=True)
+        return
+    
     expires_at = "NULL"
     if часы > 0:
         expires_at = f"datetime('now', '+{часы} hours')"
@@ -430,8 +456,11 @@ async def add_item(interaction: discord.Interaction, название: str, це
     await interaction.response.send_message(embed=embed, ephemeral=False)
 
 @bot.tree.command(name="remove_item", description="[АДМИН] Удалить предмет из магазина")
-@is_admin()
 async def remove_item(interaction: discord.Interaction, название: str):
+    if not is_admin(interaction):
+        await interaction.response.send_message("❌ У вас нет прав администратора на этом сервере!", ephemeral=True)
+        return
+    
     c.execute('DELETE FROM shop_items WHERE name = ?', (название,))
     conn.commit()
     await interaction.response.send_message(f"✅ Предмет **{название}** удалён из магазина!", ephemeral=False)
