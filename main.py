@@ -156,7 +156,7 @@ class ShopPaginator(discord.ui.View):
         if not self.items:
             embed = discord.Embed(
                 title="🏪 МАГАЗИН",
-                description="━━━━━━━━━━━━━━━━━━━━━━\n**Магазин пуст!**",
+                description="Магазин пуст!",
                 color=0xff5555
             )
             return embed
@@ -167,7 +167,6 @@ class ShopPaginator(discord.ui.View):
         
         embed = discord.Embed(
             title="🏪 BELFAST SHOP",
-            description="━━━━━━━━━━━━━━━━━━━━━━",
             color=0xff5555
         )
         embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/3081/3081559.png")
@@ -175,8 +174,8 @@ class ShopPaginator(discord.ui.View):
         
         for item in page_items:
             embed.add_field(
-                name=f"**🛒 {item[0]}**",
-                value=f"└ 📝 {item[1]}\n└ 💰 {item[2]} Belfast_coin",
+                name=f"🛒 {item[0]}",
+                value=f"📝 {item[1]}\n💰 {item[2]} Belfast_coin",
                 inline=False
             )
         
@@ -225,7 +224,7 @@ class AchievementsPaginator(discord.ui.View):
         if not self.achievements:
             embed = discord.Embed(
                 title="🏆 ДОСТИЖЕНИЯ",
-                description="━━━━━━━━━━━━━━━━━━━━━━\n**Достижений пока нет!**",
+                description="Достижений пока нет!",
                 color=0xffaa77
             )
             return embed
@@ -236,7 +235,6 @@ class AchievementsPaginator(discord.ui.View):
         
         embed = discord.Embed(
             title="🏆 BELFAST ACHIEVEMENTS",
-            description="━━━━━━━━━━━━━━━━━━━━━━",
             color=0xffaa77
         )
         embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/1828/1828884.png")
@@ -246,8 +244,8 @@ class AchievementsPaginator(discord.ui.View):
             status_emoji = "✅" if ach[0] in self.earned else "❌"
             status_text = "ПОЛУЧЕНО" if ach[0] in self.earned else "НЕ ПОЛУЧЕНО"
             embed.add_field(
-                name=f"{status_emoji} **{ach[1]}**",
-                value=f"└ 📝 {ach[2]}\n└ 💰 Награда: {ach[3]} монет\n└ 🏷️ {status_text}",
+                name=f"{status_emoji} {ach[1]}",
+                value=f"📝 {ach[2]}\n💰 Награда: {ach[3]} монет\n🏷️ {status_text}",
                 inline=False
             )
         
@@ -282,7 +280,6 @@ async def on_ready():
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🤖 BELFAST BOT",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0xff5555
     )
     embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/906/906361.png")
@@ -290,12 +287,23 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="🏪 МАГАЗИН", value="`/магазин` `/купить` `/кейс`", inline=False)
     embed.add_field(name="🏆 ДОСТИЖЕНИЯ", value="`/достижения` `/достижение`", inline=False)
     embed.add_field(name="🎒 ИНВЕНТАРЬ", value="`/инвентарь`", inline=False)
+    embed.add_field(name="😂 РАЗВЛЕЧЕНИЯ", value="`/ы`", inline=False)
     
     if is_admin(interaction):
         embed.add_field(name="🛠️ АДМИН", value="`/add_achievement` `/add_balance` `/remove_balance` `/add_item` `/remove_item` `/give_achievement` `/give_item`", inline=False)
     
     embed.set_footer(text="Belfast Shop | Все команды бесплатны")
     await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="ы", description="Сказать Ы")
+async def y_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🥚 Ы",
+        description="ыыыыыыыыы",
+        color=0xffaa77
+    )
+    embed.set_footer(text="ЫЫЫЫЫЫЫЫЫЫЫЫЫ")
+    await interaction.response.send_message(embed=embed, ephemeral=False)
 
 @bot.tree.command(name="баланс", description="Показать свой баланс или баланс другого игрока")
 async def balance(interaction: discord.Interaction, пользователь: discord.User = None):
@@ -304,7 +312,6 @@ async def balance(interaction: discord.Interaction, пользователь: di
     
     embed = discord.Embed(
         title="💰 БАЛАНС",
-        description=f"━━━━━━━━━━━━━━━━━━━━━━",
         color=0xffaa77
     )
     embed.add_field(name="👤 Игрок", value=target.mention, inline=True)
@@ -320,7 +327,6 @@ async def daily(interaction: discord.Interaction):
     if not can_claim:
         embed = discord.Embed(
             title="❌ ЕЖЕДНЕВНЫЙ БОНУС",
-            description="━━━━━━━━━━━━━━━━━━━━━━",
             color=0xff5555
         )
         embed.add_field(name="Уже получен", value="Вы уже получали бонус сегодня!\nВозвращайтесь завтра.", inline=False)
@@ -330,7 +336,6 @@ async def daily(interaction: discord.Interaction):
     update_balance(user_id, reward)
     embed = discord.Embed(
         title="🎁 ЕЖЕДНЕВНЫЙ БОНУС",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0xffaa77
     )
     embed.add_field(name="💰 Награда", value=f"+{reward} Belfast_coin", inline=True)
@@ -361,7 +366,6 @@ async def transfer(interaction: discord.Interaction, пользователь: d
     
     embed = discord.Embed(
         title="💰 ПЕРЕВОД МОНЕТ",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0x88ff88
     )
     embed.add_field(name="📤 Отправитель", value=interaction.user.mention, inline=True)
@@ -380,7 +384,6 @@ async def leaderboard(interaction: discord.Interaction):
     
     embed = discord.Embed(
         title="🏆 ТОП ИГРОКОВ",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0xffaa77
     )
     embed.set_thumbnail(url="https://cdn-icons-png.flaticon.com/512/1828/1828884.png")
@@ -430,7 +433,6 @@ async def buy(interaction: discord.Interaction, название: str):
     
     embed = discord.Embed(
         title="✅ ПОКУПКА",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0x88ff88
     )
     embed.add_field(name="🎁 Предмет", value=название, inline=True)
@@ -447,7 +449,7 @@ async def inventory(interaction: discord.Interaction):
     if not items:
         embed = discord.Embed(
             title="🎒 ИНВЕНТАРЬ",
-            description="━━━━━━━━━━━━━━━━━━━━━━\n**У вас пока нет предметов!**\nКупите что-нибудь в `/магазин`",
+            description="У вас пока нет предметов!\nКупите что-нибудь в `/магазин`",
             color=0xffaa77
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -455,7 +457,6 @@ async def inventory(interaction: discord.Interaction):
     
     embed = discord.Embed(
         title="🎒 ИНВЕНТАРЬ",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0xffaa77
     )
     
@@ -467,15 +468,16 @@ async def inventory(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-# ========== АНИМАЦИЯ ДЛЯ КЕЙСА ==========
+# ========== КЕЙС С АНИМАЦИЕЙ (ИСПРАВЛЕН) ==========
 class CaseView(discord.ui.View):
     def __init__(self, user_id, price):
         super().__init__(timeout=60)
         self.user_id = user_id
         self.price = price
         self.step = 0
-        self.prize = None
+        self.prize_name = None
         self.prize_amount = 0
+        self.message = None
         
         self.prizes = [
             ("🥉 Утешительный приз", 10),
@@ -490,40 +492,36 @@ class CaseView(discord.ui.View):
     
     async def start_animation(self, interaction: discord.Interaction):
         self.prize_name, self.prize_amount = random.choice(self.prizes)
-        await self.update_message(interaction)
+        await self.animate(interaction, 0)
     
-    async def update_message(self, interaction: discord.Interaction):
+    async def animate(self, interaction: discord.Interaction, step: int):
         animations = [
             ("🎲", "Крутим барабан..."),
             ("🎰", "Выпадает..."),
             ("✨", "Почти готово..."),
-            ("🎁", "И..."),
+            ("🎁", "И...")
         ]
         
-        if self.step < len(animations):
-            emoji, text = animations[self.step]
+        if step < len(animations):
+            emoji, text = animations[step]
             embed = discord.Embed(
                 title="🎲 ОТКРЫТИЕ КЕЙСА",
-                description=f"━━━━━━━━━━━━━━━━━━━━━━\n{emoji} **{text}**",
+                description=f"{emoji} **{text}**",
                 color=0xffaa77
             )
-            self.step += 1
             await interaction.edit_original_response(embed=embed, view=self)
             await asyncio.sleep(0.8)
-            await self.update_message(interaction)
+            await self.animate(interaction, step + 1)
         else:
             update_balance(self.user_id, -self.price + self.prize_amount)
             
             embed = discord.Embed(
                 title="🎲 ОТКРЫТИЕ КЕЙСА",
-                description="━━━━━━━━━━━━━━━━━━━━━━",
                 color=0xffaa77
             )
             embed.add_field(name="🎁 Выпало", value=f"{self.prize_name} — **{self.prize_amount}** монет!", inline=False)
             embed.set_footer(text="Повезёт в следующий раз!")
             
-            for child in self.children:
-                child.disabled = True
             await interaction.edit_original_response(embed=embed, view=None)
 
 @bot.tree.command(name="кейс", description="Открыть кейс за 50 монет (рандомный выигрыш)")
@@ -539,7 +537,12 @@ async def case(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     
     view = CaseView(user_id, price)
-    await interaction.followup.send(embed=discord.Embed(title="🎲 ОТКРЫТИЕ КЕЙСА", description="━━━━━━━━━━━━━━━━━━━━━━\n🎲 **Начинаем открытие...**", color=0xffaa77), view=view, ephemeral=True)
+    embed = discord.Embed(
+        title="🎲 ОТКРЫТИЕ КЕЙСА",
+        description="🎲 **Начинаем открытие...**",
+        color=0xffaa77
+    )
+    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
     await view.start_animation(await interaction.original_response())
 
 @bot.tree.command(name="достижения", description="Показать все достижения и статус их получения")
@@ -567,7 +570,6 @@ async def achievement_info(interaction: discord.Interaction, название: s
     status = "✅ ПОЛУЧЕНО" if earned else "⏳ НЕ ПОЛУЧЕНО"
     embed = discord.Embed(
         title=f"🏆 {ach[0]}",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0xffaa77
     )
     embed.add_field(name="📝 Описание", value=ach[1], inline=False)
@@ -588,7 +590,6 @@ async def add_achievement(interaction: discord.Interaction, название: st
         conn.commit()
         embed = discord.Embed(
             title="✅ ДОСТИЖЕНИЕ СОЗДАНО",
-            description="━━━━━━━━━━━━━━━━━━━━━━",
             color=0x88ff88
         )
         embed.add_field(name="🏆 Название", value=название, inline=True)
@@ -643,7 +644,6 @@ async def add_item(interaction: discord.Interaction, название: str, це
     duration_text = f"{часы} часов" if часы > 0 else "навсегда"
     embed = discord.Embed(
         title="✅ ПРЕДМЕТ ДОБАВЛЕН",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0x88ff88
     )
     embed.add_field(name="🎁 Название", value=название, inline=True)
@@ -677,7 +677,6 @@ async def give_achievement_cmd(interaction: discord.Interaction, пользов�
     
     embed = discord.Embed(
         title="🏆 ДОСТИЖЕНИЕ ВЫДАНО",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0x88ff88
     )
     embed.add_field(name="👤 Игрок", value=пользователь.mention, inline=True)
@@ -700,7 +699,6 @@ async def give_item_cmd(interaction: discord.Interaction, пользовател
     
     embed = discord.Embed(
         title="🎁 ПРЕДМЕТ ВЫДАН",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
         color=0x88ff88
     )
     embed.add_field(name="👤 Игрок", value=пользователь.mention, inline=True)
