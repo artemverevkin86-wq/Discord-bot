@@ -5,6 +5,7 @@ import sqlite3
 import random
 from datetime import datetime
 import os
+import asyncio
 
 # ========== НАСТРОЙКИ ==========
 TOKEN = os.environ['TOKEN']
@@ -41,7 +42,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS shop_items (
     item_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE,
     description TEXT,
-    price INTEGER,
+    price INTEGER DEFAULT 0,
     duration_hours INTEGER DEFAULT 0,
     created_at TIMESTAMP,
     expires_at TIMESTAMP
@@ -134,14 +135,6 @@ def give_item(user_id, item_name):
     conn.commit()
     return True, None
 
-# ========== СОБЫТИЯ ==========
-@bot.event
-async def on_ready():
-    print(f'✅ Бот {bot.user} запущен!')
-    await bot.tree.sync()
-    print("✅ Слеш-команды синхронизированы!")
-    await bot.change_presence(activity=discord.Game(name="/помощь"))
-
 # ========== ПАГИНАТОР ДЛЯ МАГАЗИНА ==========
 class ShopPaginator(discord.ui.View):
     def __init__(self, items, items_per_page=5):
@@ -161,8 +154,11 @@ class ShopPaginator(discord.ui.View):
     
     def get_embed(self):
         if not self.items:
-            embed = discord.Embed(title="🏪 МАГАЗИН", color=0xff5555)
-            embed.description = "Магазин пуст!"
+            embed = discord.Embed(
+                title="🏪 МАГАЗИН",
+                description="━━━━━━━━━━━━━━━━━━━━━━\n**Магазин пуст!**",
+                color=0xff5555
+            )
             return embed
         
         start = self.current_page * self.items_per_page
@@ -227,8 +223,11 @@ class AchievementsPaginator(discord.ui.View):
     
     def get_embed(self):
         if not self.achievements:
-            embed = discord.Embed(title="🏆 ДОСТИЖЕНИЯ", color=0xffaa77)
-            embed.description = "Достижений пока нет!"
+            embed = discord.Embed(
+                title="🏆 ДОСТИЖЕНИЯ",
+                description="━━━━━━━━━━━━━━━━━━━━━━\n**Достижений пока нет!**",
+                color=0xffaa77
+            )
             return embed
         
         start = self.current_page * self.items_per_page
@@ -269,6 +268,14 @@ class AchievementsPaginator(discord.ui.View):
             return True
         return False
 
+# ========== СОБЫТИЯ ==========
+@bot.event
+async def on_ready():
+    print(f'✅ Бот {bot.user} запущен!')
+    await bot.tree.sync()
+    print("✅ Слеш-команды синхронизированы!")
+    await bot.change_presence(activity=discord.Game(name="/помощь"))
+
 # ========== СЛЕШ-КОМАНДЫ ==========
 
 @bot.tree.command(name="помощь", description="Показать список всех команд")
@@ -288,7 +295,7 @@ async def help_command(interaction: discord.Interaction):
         embed.add_field(name="🛠️ АДМИН", value="`/add_achievement` `/add_balance` `/remove_balance` `/add_item` `/remove_item` `/give_achievement` `/give_item`", inline=False)
     
     embed.set_footer(text="Belfast Shop | Все команды бесплатны")
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="баланс", description="Показать свой баланс или баланс другого игрока")
 async def balance(interaction: discord.Interaction, пользователь: discord.User = None):
@@ -303,7 +310,7 @@ async def balance(interaction: discord.Interaction, пользователь: di
     embed.add_field(name="👤 Игрок", value=target.mention, inline=True)
     embed.add_field(name="💎 Баланс", value=f"**{balance_amount}** Belfast_coin", inline=True)
     embed.set_footer(text="Используйте /ежедневный для получения бонуса")
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="ежедневный", description="Получить ежедневный бонус (серия увеличивает награду)")
 async def daily(interaction: discord.Interaction):
@@ -329,7 +336,7 @@ async def daily(interaction: discord.Interaction):
     embed.add_field(name="💰 Награда", value=f"+{reward} Belfast_coin", inline=True)
     embed.add_field(name="🔥 Серия", value=f"{streak} дней", inline=True)
     embed.set_footer(text="Возвращайтесь завтра за новым бонусом!")
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="передать", description="Передать монеты другому игроку")
 async def transfer(interaction: discord.Interaction, пользователь: discord.User, сумма: int):
@@ -360,7 +367,7 @@ async def transfer(interaction: discord.Interaction, пользователь: d
     embed.add_field(name="📤 Отправитель", value=interaction.user.mention, inline=True)
     embed.add_field(name="📥 Получатель", value=пользователь.mention, inline=True)
     embed.add_field(name="💎 Сумма", value=f"{сумма} Belfast_coin", inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="топ", description="Топ 10 игроков по балансу")
 async def leaderboard(interaction: discord.Interaction):
@@ -387,7 +394,7 @@ async def leaderboard(interaction: discord.Interaction):
         medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🔹"
         embed.add_field(name=f"{medal} #{i}", value=f"**{name}** — {balance_amount} монет", inline=False)
     
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="магазин", description="Показать все предметы в магазине")
 async def shop(interaction: discord.Interaction):
@@ -395,7 +402,7 @@ async def shop(interaction: discord.Interaction):
     items = c.fetchall()
     
     view = ShopPaginator(items)
-    await interaction.response.send_message(embed=view.get_embed(), view=view)
+    await interaction.response.send_message(embed=view.get_embed(), view=view, ephemeral=True)
 
 @bot.tree.command(name="купить", description="Купить предмет из магазина")
 async def buy(interaction: discord.Interaction, название: str):
@@ -429,7 +436,7 @@ async def buy(interaction: discord.Interaction, название: str):
     embed.add_field(name="🎁 Предмет", value=название, inline=True)
     embed.add_field(name="💰 Цена", value=f"{price} Belfast_coin", inline=True)
     embed.set_footer(text="Предмет добавлен в ваш инвентарь!")
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="инвентарь", description="Показать свои предметы")
 async def inventory(interaction: discord.Interaction):
@@ -440,11 +447,10 @@ async def inventory(interaction: discord.Interaction):
     if not items:
         embed = discord.Embed(
             title="🎒 ИНВЕНТАРЬ",
-            description="━━━━━━━━━━━━━━━━━━━━━━",
+            description="━━━━━━━━━━━━━━━━━━━━━━\n**У вас пока нет предметов!**\nКупите что-нибудь в `/магазин`",
             color=0xffaa77
         )
-        embed.description = "У вас пока нет предметов!\nКупите что-нибудь в `/магазин`"
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
     
     embed = discord.Embed(
@@ -459,7 +465,66 @@ async def inventory(interaction: discord.Interaction):
     if len(items) > 15:
         embed.set_footer(text=f"и ещё {len(items) - 15} предметов...")
     
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# ========== АНИМАЦИЯ ДЛЯ КЕЙСА ==========
+class CaseView(discord.ui.View):
+    def __init__(self, user_id, price):
+        super().__init__(timeout=60)
+        self.user_id = user_id
+        self.price = price
+        self.step = 0
+        self.prize = None
+        self.prize_amount = 0
+        
+        self.prizes = [
+            ("🥉 Утешительный приз", 10),
+            ("🥉 Бронзовая монета", 25),
+            ("🥈 Серебряная монета", 50),
+            ("🥇 Золотая монета", 100),
+            ("💎 Алмазная монета", 250),
+            ("👑 Королевский клад", 500),
+            ("🎁 Секретный сундук", 750),
+            ("✨ Мифический дар", 1000)
+        ]
+    
+    async def start_animation(self, interaction: discord.Interaction):
+        self.prize_name, self.prize_amount = random.choice(self.prizes)
+        await self.update_message(interaction)
+    
+    async def update_message(self, interaction: discord.Interaction):
+        animations = [
+            ("🎲", "Крутим барабан..."),
+            ("🎰", "Выпадает..."),
+            ("✨", "Почти готово..."),
+            ("🎁", "И..."),
+        ]
+        
+        if self.step < len(animations):
+            emoji, text = animations[self.step]
+            embed = discord.Embed(
+                title="🎲 ОТКРЫТИЕ КЕЙСА",
+                description=f"━━━━━━━━━━━━━━━━━━━━━━\n{emoji} **{text}**",
+                color=0xffaa77
+            )
+            self.step += 1
+            await interaction.edit_original_response(embed=embed, view=self)
+            await asyncio.sleep(0.8)
+            await self.update_message(interaction)
+        else:
+            update_balance(self.user_id, -self.price + self.prize_amount)
+            
+            embed = discord.Embed(
+                title="🎲 ОТКРЫТИЕ КЕЙСА",
+                description="━━━━━━━━━━━━━━━━━━━━━━",
+                color=0xffaa77
+            )
+            embed.add_field(name="🎁 Выпало", value=f"{self.prize_name} — **{self.prize_amount}** монет!", inline=False)
+            embed.set_footer(text="Повезёт в следующий раз!")
+            
+            for child in self.children:
+                child.disabled = True
+            await interaction.edit_original_response(embed=embed, view=None)
 
 @bot.tree.command(name="кейс", description="Открыть кейс за 50 монет (рандомный выигрыш)")
 async def case(interaction: discord.Interaction):
@@ -471,28 +536,11 @@ async def case(interaction: discord.Interaction):
         await interaction.response.send_message(f"❌ Не хватает! Кейс стоит {price} Belfast_coin", ephemeral=True)
         return
     
-    prizes = [
-        ("🥉 Утешительный приз", 10),
-        ("🥉 Бронзовая монета", 25),
-        ("🥈 Серебряная монета", 50),
-        ("🥇 Золотая монета", 100),
-        ("💎 Алмазная монета", 250),
-        ("👑 Королевский клад", 500),
-        ("🎁 Секретный сундук", 750),
-        ("✨ Мифический дар", 1000)
-    ]
+    await interaction.response.defer(ephemeral=True)
     
-    prize_name, prize_amount = random.choice(prizes)
-    update_balance(user_id, -price + prize_amount)
-    
-    embed = discord.Embed(
-        title="🎲 ОТКРЫТИЕ КЕЙСА",
-        description="━━━━━━━━━━━━━━━━━━━━━━",
-        color=0xffaa77
-    )
-    embed.add_field(name="🎁 Выпало", value=f"{prize_name} — **{prize_amount}** монет!", inline=False)
-    embed.set_footer(text="Повезёт в следующий раз!")
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    view = CaseView(user_id, price)
+    await interaction.followup.send(embed=discord.Embed(title="🎲 ОТКРЫТИЕ КЕЙСА", description="━━━━━━━━━━━━━━━━━━━━━━\n🎲 **Начинаем открытие...**", color=0xffaa77), view=view, ephemeral=True)
+    await view.start_animation(await interaction.original_response())
 
 @bot.tree.command(name="достижения", description="Показать все достижения и статус их получения")
 async def list_achievements(interaction: discord.Interaction):
@@ -500,7 +548,7 @@ async def list_achievements(interaction: discord.Interaction):
     all_ach = c.fetchall()
     
     view = AchievementsPaginator(all_ach, str(interaction.user.id))
-    await interaction.response.send_message(embed=view.get_embed(), view=view)
+    await interaction.response.send_message(embed=view.get_embed(), view=view, ephemeral=True)
 
 @bot.tree.command(name="достижение", description="Показать подробную информацию о достижении")
 async def achievement_info(interaction: discord.Interaction, название: str):
@@ -525,7 +573,7 @@ async def achievement_info(interaction: discord.Interaction, название: s
     embed.add_field(name="📝 Описание", value=ach[1], inline=False)
     embed.add_field(name="💰 Награда", value=f"{ach[2]} монет", inline=False)
     embed.add_field(name="📌 Статус", value=status, inline=False)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ========== АДМИН-КОМАНДЫ ==========
 
@@ -546,7 +594,7 @@ async def add_achievement(interaction: discord.Interaction, название: st
         embed.add_field(name="🏆 Название", value=название, inline=True)
         embed.add_field(name="💰 Награда", value=f"{награда} монет", inline=True)
         embed.add_field(name="📝 Описание", value=описание, inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     except sqlite3.IntegrityError:
         await interaction.response.send_message(f"❌ Достижение **{название}** уже существует!", ephemeral=True)
 
@@ -562,7 +610,7 @@ async def add_balance(interaction: discord.Interaction, пользователь
     embed = discord.Embed(title="✅ БАЛАНС ИЗМЕНЁН", color=0x88ff88)
     embed.add_field(name="👤 Игрок", value=пользователь.mention, inline=True)
     embed.add_field(name="💰 Изменение", value=f"+{сумма} Belfast_coin", inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="remove_balance", description="[АДМИН] Снять монеты с игрока")
 async def remove_balance(interaction: discord.Interaction, пользователь: discord.User, сумма: int):
@@ -576,7 +624,7 @@ async def remove_balance(interaction: discord.Interaction, пользовате�
     embed = discord.Embed(title="✅ БАЛАНС ИЗМЕНЁН", color=0xffaa77)
     embed.add_field(name="👤 Игрок", value=пользователь.mention, inline=True)
     embed.add_field(name="💰 Изменение", value=f"-{сумма} Belfast_coin", inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="add_item", description="[АДМИН] Добавить предмет в магазин")
 async def add_item(interaction: discord.Interaction, название: str, цена: int, часы: int = 0, описание: str = "Нет описания"):
@@ -602,7 +650,7 @@ async def add_item(interaction: discord.Interaction, название: str, це
     embed.add_field(name="💰 Цена", value=f"{цена} монет", inline=True)
     embed.add_field(name="⏰ Длительность", value=duration_text, inline=True)
     embed.add_field(name="📝 Описание", value=описание, inline=False)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="remove_item", description="[АДМИН] Удалить предмет из магазина")
 async def remove_item(interaction: discord.Interaction, название: str):
@@ -612,7 +660,7 @@ async def remove_item(interaction: discord.Interaction, название: str):
     
     c.execute('DELETE FROM shop_items WHERE name = ?', (название,))
     conn.commit()
-    await interaction.response.send_message(f"✅ Предмет **{название}** удалён из магазина!", ephemeral=False)
+    await interaction.response.send_message(f"✅ Предмет **{название}** удалён из магазина!", ephemeral=True)
 
 @bot.tree.command(name="give_achievement", description="[АДМИН] Выдать достижение игроку")
 async def give_achievement_cmd(interaction: discord.Interaction, пользователь: discord.User, название: str):
@@ -635,7 +683,7 @@ async def give_achievement_cmd(interaction: discord.Interaction, пользов�
     embed.add_field(name="👤 Игрок", value=пользователь.mention, inline=True)
     embed.add_field(name="🏆 Достижение", value=название, inline=True)
     embed.add_field(name="💰 Награда", value=f"+{result} монет", inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="give_item", description="[АДМИН] Выдать предмет игроку")
 async def give_item_cmd(interaction: discord.Interaction, пользователь: discord.User, название: str):
@@ -657,7 +705,7 @@ async def give_item_cmd(interaction: discord.Interaction, пользовател
     )
     embed.add_field(name="👤 Игрок", value=пользователь.mention, inline=True)
     embed.add_field(name="🎁 Предмет", value=название, inline=True)
-    await interaction.response.send_message(embed=embed, ephemeral=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # ========== ЗАПУСК ==========
 bot.run(TOKEN)
